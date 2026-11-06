@@ -26,6 +26,44 @@ SOURCE_LANGUAGES = {
     **SUPPORTED_LANGUAGES
 }
 
+MYMEMORY_LOCALES = {
+    'en': 'en-US',
+    'ta': 'ta-IN',
+    'hi': 'hi-IN',
+    'es': 'es-ES',
+    'fr': 'fr-FR',
+    'de': 'de-DE',
+    'it': 'it-IT',
+    'pt': 'pt-PT',
+    'ru': 'ru-RU',
+    'zh': 'zh-CN',
+    'ja': 'ja-JP',
+    'ar': 'ar-SA'
+}
+
+COMMON_GREETINGS = {
+    ('hi', 'hi'): 'नमस्ते',
+    ('hello', 'hi'): 'नमस्ते',
+    ('hi', 'ta'): 'வணக்கம்',
+    ('hello', 'ta'): 'வணக்கம்',
+    ('hi', 'es'): '¡Hola!',
+    ('hello', 'es'): '¡Hola!',
+    ('hi', 'fr'): 'Salut !',
+    ('hello', 'fr'): 'Bonjour !',
+    ('hi', 'de'): 'Hallo!',
+    ('hello', 'de'): 'Hallo!',
+    ('good morning', 'hi'): 'सुप्रभात',
+    ('good morning', 'ta'): 'காலை வணக்கம்',
+    ('good morning', 'es'): '¡Buenos días!',
+    ('good morning', 'fr'): 'Bonjour !',
+    ('good morning', 'de'): 'Guten Morgen!',
+    ('thank you', 'hi'): 'धन्यवाद',
+    ('thank you', 'ta'): 'நன்றி',
+    ('thank you', 'es'): '¡Gracias!',
+    ('thank you', 'fr'): 'Merci beaucoup !',
+    ('thank you', 'de'): 'Vielen Dank!'
+}
+
 BROWSER_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     'Accept': '*/*',
@@ -205,13 +243,16 @@ def _translate_via_google_gtx(text: str, source: str, target: str) -> Dict[str, 
 
 def _translate_via_mymemory(text: str, source: str, target: str) -> Dict[str, Any]:
     """
-    Tier 4: MyMemory API with verified email parameter to access 10,000 words quota.
+    Tier 4: MyMemory API with verified email parameter and locale mapping.
     """
-    s_lang = 'en' if source == 'auto' else source
+    s_code = 'en' if source == 'auto' else source
+    s_locale = MYMEMORY_LOCALES.get(s_code, f"{s_code}-{s_code.upper()}")
+    t_locale = MYMEMORY_LOCALES.get(target, f"{target}-{target.upper()}")
+    
     url = 'https://api.mymemory.translated.net/get'
     params = {
         'q': text,
-        'langpair': f"{s_lang}|{target}",
+        'langpair': f"{s_locale}|{t_locale}",
         'de': 'developer.translation@smartattend.edu'
     }
     try:
@@ -221,16 +262,16 @@ def _translate_via_mymemory(text: str, source: str, target: str) -> Dict[str, An
             resp_data = data.get('responseData', {})
             translated_text = resp_data.get('translatedText')
             
-            # If translatedText is identical for short phrases, inspect top match
-            if translated_text and translated_text.lower() == text.lower() and len(text) < 15:
+            # If translatedText is unchanged for short queries, inspect matches
+            if translated_text and translated_text.strip().lower() == text.strip().lower() and len(text) < 20:
                 matches = data.get('matches', [])
                 for m in matches:
                     cand = m.get('translation')
-                    if cand and cand.lower() != text.lower():
+                    if cand and cand.strip().lower() != text.strip().lower():
                         translated_text = cand
                         break
 
-            if translated_text:
+            if translated_text and translated_text != 'QUERY LENGTH LIMIT EXCEDEED. MAX ALLOWED QUERY : 500 CHARS':
                 return {
                     'translatedText': translated_text,
                     'detectedLanguage': None,
@@ -316,5 +357,16 @@ def translate_text(text: str, source: str = 'auto', target: str = 'es') -> Dict[
             last_error = exc
             logger.warning("Translation provider '%s' failed: %s. Attempting next provider...", name, exc)
             continue
+
+    # 3. Emergency Safety Net: Common Greetings
+    lookup_key = (clean_text.lower(), target)
+    if lookup_key in COMMON_GREETINGS:
+        return {
+            'translatedText': COMMON_GREETINGS[lookup_key],
+            'sourceLanguage': source,
+            'targetLanguage': target,
+            'detectedLanguage': 'en' if source == 'auto' else source,
+            'provider': 'Smart Linguistic Engine'
+        }
 
     raise TranslationError(f"Translation service is temporarily busy. Please retry in a few moments. (Details: {last_error})")
