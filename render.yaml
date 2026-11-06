@@ -1,0 +1,11 @@
+﻿services:
+  - type: web
+    name: polyglot-translator
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn run:app
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: TRANSLATION_PROVIDER
+        value: auto

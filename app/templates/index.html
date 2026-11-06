@@ -1,0 +1,214 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolyGlot Translator | Professional Language Translation Tool</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+    <div class="ambient-glow glow-3"></div>
+
+    <div class="app-wrapper">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-language"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>PolyGlot <span>Translate</span></h1>
+                    <p>Next-Gen Real-Time Neural & LibreTranslate Engine</p>
+                </div>
+            </div>
+            <div class="header-status">
+                <span class="status-indicator"></span>
+                <span class="status-label">Flask Backend Connected</span>
+            </div>
+        </header>
+
+        <!-- Main Translation Container -->
+        <main class="translator-container">
+            <!-- Language Controls Bar -->
+            <div class="languages-bar">
+                <div class="lang-select-group">
+                    <label for="sourceLanguage" class="sr-only">Source Language</label>
+                    <div class="custom-select-wrapper">
+                        <i class="fa-solid fa-earth-americas select-icon"></i>
+                        <select id="sourceLanguage" class="language-dropdown" aria-label="Select source language">
+                            {% for lang in source_languages %}
+                            <option value="{{ lang.code }}" {% if lang.code == 'auto' %}selected{% endif %}>
+                                {{ lang.flag }} {{ lang.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+                    </div>
+                </div>
+
+                <!-- Swap Button -->
+                <button type="button" id="swapLanguagesBtn" class="swap-btn" title="Swap languages (Alt+S)" aria-label="Swap source and target languages">
+                    <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                </button>
+
+                <div class="lang-select-group">
+                    <label for="targetLanguage" class="sr-only">Target Language</label>
+                    <div class="custom-select-wrapper">
+                        <i class="fa-solid fa-globe select-icon"></i>
+                        <select id="targetLanguage" class="language-dropdown" aria-label="Select target language">
+                            {% for lang in target_languages %}
+                            <option value="{{ lang.code }}" {% if lang.code == 'es' %}selected{% endif %}>
+                                {{ lang.flag }} {{ lang.name }} ({{ lang.native }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workspace: Input and Output Panels -->
+            <div class="workspace-grid">
+                <!-- Source Card -->
+                <div class="card source-card">
+                    <div class="card-header">
+                        <span class="card-title">
+                            <i class="fa-solid fa-pen-nib"></i> Source Text
+                        </span>
+                        <div class="card-actions">
+                            <button type="button" id="clearInputBtn" class="icon-btn" title="Clear text" aria-label="Clear source text">
+                                <i class="fa-solid fa-xmark"></i>
+                                <span>Clear</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <textarea 
+                            id="sourceText" 
+                            class="text-box" 
+                            placeholder="Enter or paste text to translate here... (Ctrl + Enter to translate)"
+                            maxlength="5000"
+                            spellcheck="true"
+                            autofocus
+                        ></textarea>
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="footer-left">
+                            <button type="button" id="listenSourceBtn" class="icon-btn action-audio" title="Listen to source audio" aria-label="Pronounce source text">
+                                <i class="fa-solid fa-volume-high"></i>
+                                <span>Listen</span>
+                            </button>
+                        </div>
+                        <div class="footer-right">
+                            <span id="charCount" class="char-counter">0 / 5,000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Target Card -->
+                <div class="card target-card">
+                    <div class="card-header">
+                        <span class="card-title">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Translation Result
+                        </span>
+                        <div class="card-badges">
+                            <span id="detectedLangBadge" class="badge detected-badge" style="display: none;">
+                                <i class="fa-solid fa-magnifying-glass"></i> <span id="detectedLangText">Detected</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <!-- Shimmer loading state -->
+                        <div id="outputLoading" class="loading-overlay" style="display: none;">
+                            <div class="shimmer-line line-1"></div>
+                            <div class="shimmer-line line-2"></div>
+                            <div class="shimmer-line line-3"></div>
+                            <div class="spinner-pulse">
+                                <i class="fa-solid fa-circle-notch fa-spin"></i>
+                                <span>Translating neural sequence...</span>
+                            </div>
+                        </div>
+
+                        <!-- Actual translated text display -->
+                        <div id="targetText" class="text-box output-box empty-state" tabindex="0" role="region" aria-live="polite" aria-label="Translation output">
+                            <div class="empty-placeholder">
+                                <i class="fa-solid fa-language placeholder-icon"></i>
+                                <p>Translation will appear here instantly</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="footer-left">
+                            <button type="button" id="listenTargetBtn" class="icon-btn action-audio" title="Listen to translation" aria-label="Pronounce translated text" disabled>
+                                <i class="fa-solid fa-volume-high"></i>
+                                <span>Listen</span>
+                            </button>
+                            <button type="button" id="copyTargetBtn" class="icon-btn action-copy" title="Copy translated text" aria-label="Copy translated text to clipboard" disabled>
+                                <i class="fa-regular fa-copy"></i>
+                                <span id="copyBtnText">Copy</span>
+                            </button>
+                        </div>
+                        <div class="footer-right">
+                            <span id="providerBadge" class="badge provider-badge" style="display: none;">
+                                <i class="fa-solid fa-microchip"></i> <span id="providerName">Ready</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Translate Action Bar -->
+            <div class="action-bar">
+                <div class="action-hint">
+                    <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to translate instantly
+                </div>
+                <button type="button" id="translateBtn" class="btn-primary translate-btn">
+                    <span class="btn-content">
+                        <i class="fa-solid fa-arrow-right-arrow-left translate-icon"></i>
+                        <span id="translateBtnText">Translate Now</span>
+                    </span>
+                    <span id="btnSpinner" class="btn-spinner" style="display: none;">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                    </span>
+                </button>
+            </div>
+
+            <!-- Quick Example Chips for quick testing -->
+            <div class="quick-samples">
+                <span class="samples-title"><i class="fa-solid fa-bolt"></i> Try quick phrases:</span>
+                <div class="chips-container">
+                    <button type="button" class="sample-chip" data-text="Hello, welcome to our modern language translator!">"Hello, welcome!"</button>
+                    <button type="button" class="sample-chip" data-text="Good morning! How are you doing today?">"Good morning! How are you?"</button>
+                    <button type="button" class="sample-chip" data-text="Where can I find the nearest train station?">"Where is the train station?"</button>
+                    <button type="button" class="sample-chip" data-text="Thank you very much for your wonderful support and kindness.">"Thank you for your support"</button>
+                    <button type="button" class="sample-chip" data-text="Artificial intelligence is transforming communication across the world.">"AI is transforming communication"</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Toast Notifications Container -->
+        <div id="toastContainer" class="toast-container" aria-live="assertive"></div>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Designed with professional blue & purple gradient UI. Flask Backend API &copy; 2026 PolyGlot.</p>
+        </footer>
+    </div>
+
+    <!-- Frontend Script -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
